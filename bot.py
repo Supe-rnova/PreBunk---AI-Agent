@@ -8,8 +8,11 @@ import logging
 import os
 
 from dotenv import load_dotenv
+from langfuse import get_client
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+
+from agent import analyze_message  # the real agent (Step 4)
 
 load_dotenv()
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -20,21 +23,6 @@ logging.getLogger("httpx").setLevel(logging.WARNING)  # httpx logs URLs that con
 log = logging.getLogger("prebunk.bot")
 
 MAX_LEN = 4000  # Telegram allows 4096 characters per message
-
-
-# ---------------------------------------------------------------------------
-# PLACEHOLDER - replaced in Step 4 by:  from agent import analyze_message
-# It returns exactly the same shape as the real agent will.
-# Type the word "uncertain" in a message to test the escalation path.
-# ---------------------------------------------------------------------------
-async def analyze_message(text: str) -> dict:
-    uncertain = "uncertain" in text.lower()
-    return {
-        "reply": f"Received: {text}",
-        "escalate": uncertain,
-        "escalation_note": "placeholder: testing escalation" if uncertain else "",
-    }
-
 
 WELCOME = (
     "Hi, I'm Prebunk.\n\n"
@@ -63,6 +51,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     log.info("Analyzing a message (%d characters)", len(text))  # length only, never the content
+    await msg.reply_text("Checking this message - it usually takes 15-30 seconds...")
     await context.bot.send_chat_action(chat_id=msg.chat_id, action="typing")
 
     try:
@@ -105,6 +94,7 @@ def main() -> None:
 
     log.info("Prebunk bot is running. Press Ctrl+C to stop.")
     app.run_polling()
+    get_client().flush()  # send any remaining traces to Langfuse on shutdown
 
 
 if __name__ == "__main__":
