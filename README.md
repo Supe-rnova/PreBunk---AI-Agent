@@ -3,7 +3,7 @@
 **A Telegram agent that helps people pause before forwarding a manipulative message.**
 Forward it a message you're unsure about, and it explains *how* the message is trying to move you (fear, false urgency, scapegoating, fake authority...) and whether its main factual claim holds up. It never judges whether an opinion is right or wrong, only the persuasion mechanism and the checkable facts.
 
-**Track:** Open track · **Demo video:** _[YouTube link]_
+**Track:** Open track · **Demo video:** https://youtu.be/7AGZ5BEdgU8
 
 ---
 
