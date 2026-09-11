@@ -6,7 +6,8 @@
      -> drafter   (plain-language reply that uses ONLY the evidence)
      -> critic    (a separate, fresh model call scores confidence, support and risk)
      -> checks    (plain-code rules, so safety doesn't rely only on a model's opinion)
-     -> router    (send as-is, or soften + escalate to a human reviewer)
+     -> router    (send as-is, or soften + escalate to a human reviewer when confidence is low
+                  or a high-risk claim can't be settled by a cited source)
 
 Every step is traced in Langfuse: one trace per message.
 """
@@ -25,6 +26,8 @@ MCP_URL = os.getenv("MCP_URL", "http://127.0.0.1:8001/mcp")
 CONFIDENCE_THRESHOLD = 0.7
 KNOWN_TOOLS = {"retrieve_techniques", "fact_check"}
 SOFTENER = "This might be worth double-checking - I'm not fully certain, but here's what I found:\n\n"
+HIGH_STAKES_NOTE = ("I couldn't confirm the key claim in this message, and the topic matters, so I've also "
+                    "passed it to a human reviewer. Here's what I found:\n\n")
 NO_AFC = types.AutomaticFunctionCallingConfig(disable=True)
 
 langfuse = get_client()
@@ -75,14 +78,15 @@ Score the draft:
 - confidence (0 to 1): how confident you are that the draft is accurate, fair and safe to send as-is.
 - well_supported (true/false): true only if EVERY technique named and EVERY factual statement in the
   draft is backed by the evidence, AND each named technique genuinely fits the message.
-- risk ("low", "medium" or "high"): how much harm could follow if the draft is wrong or misread.
-  Use "high" for health or medical decisions, possible violence against a group, emergencies,
-  or financial scams, when the draft could mislead.
+- risk ("low", "medium" or "high"): how much real-world harm the MESSAGE's topic could cause if people
+  believe and share it. Use "high" for health or medical claims, hostility or violence toward a group,
+  emergencies or safety threats, and money scams. Ordinary personal or logistical messages are "low".
 - issues: a list of short strings describing any problems (empty if none).
 
-Lower the confidence when: the evidence is empty or a tool failed ("did not run"); the fact check is
-"unverified" but the draft sounds certain; the draft takes a side on an opinion; or the draft says
-anything that is not in the evidence.
+Lower the confidence when: a tool failed ("did not run"); the fact check is "unverified" but the draft
+sounds certain; the draft takes a side on an opinion; or the draft says anything not in the evidence.
+An empty "techniques" list is valid evidence that no technique matched, so a draft saying no clear
+manipulation technique was detected is well supported in that case.
 
 <message>
 MESSAGE_TEXT
@@ -235,14 +239,17 @@ def rule_checks(evidence: dict, draft: str, verdict: dict) -> dict:
 
 
 @observe(name="router", as_type="guardrail")
-def route(draft: str, verdict: dict) -> dict:
-    confident = (
-        verdict["confidence"] >= CONFIDENCE_THRESHOLD
-        and verdict["well_supported"]
-        and verdict["risk"] != "high"
-    )
-    if confident:
+def route(draft: str, verdict: dict, evidence: dict) -> dict:
+    confident = verdict["confidence"] >= CONFIDENCE_THRESHOLD and verdict["well_supported"]
+    fact = evidence.get("fact_check") if isinstance(evidence.get("fact_check"), dict) else {}
+    claim_resolved = fact.get("verdict") in {"true", "false"}  # settled by a cited source
+    unresolved_high_stakes = verdict["risk"] == "high" and not claim_resolved
+
+    if confident and not unresolved_high_stakes:
         result = {"reply": draft, "escalate": False, "escalation_note": ""}
+    elif confident:
+        result = {"reply": HIGH_STAKES_NOTE + draft, "escalate": True,
+                  "escalation_note": f"high-risk topic with an unresolved claim (confidence {verdict['confidence']:.2f})"}
     else:
         reasons = [f"confidence {verdict['confidence']:.2f}"]
         if not verdict["well_supported"]:
@@ -252,7 +259,7 @@ def route(draft: str, verdict: dict) -> dict:
         if verdict["issues"]:
             reasons.append(verdict["issues"][0])
         result = {"reply": SOFTENER + draft, "escalate": True, "escalation_note": "; ".join(reasons)}
-    langfuse.update_current_span(input=verdict, output=result)
+    langfuse.update_current_span(input={"verdict": verdict, "claim_resolved": claim_resolved}, output=result)
     return result
 
 
@@ -270,6 +277,11 @@ async def analyze_message(text: str) -> dict:
                 evidence["tools_called"].append(call["name"])
                 key = "techniques" if call["name"] == "retrieve_techniques" else "fact_check"
                 evidence[key] = await call_tool(mcp, call["name"], text, call["args"])
+            # Grounding safety net: even "no manipulation detected" must be backed by a real lookup.
+            # Retrieval is local and free, so if the planner skipped it, run it anyway.
+            if "techniques" not in evidence:
+                evidence["tools_called"].append("retrieve_techniques (safety net)")
+                evidence["techniques"] = await call_tool(mcp, "retrieve_techniques", text, {})
     except Exception as e:
         evidence["error"] = f"tools did not run ({type(e).__name__}: {e})"
 
@@ -297,7 +309,7 @@ async def analyze_message(text: str) -> dict:
     verdict = rule_checks(evidence, draft, verdict)
 
     # 5. Route
-    result = route(draft, verdict)
+    result = route(draft, verdict, evidence)
 
     langfuse.score_current_trace(name="confidence", value=verdict["confidence"])
     langfuse.score_current_trace(name="well_supported", value=1 if verdict["well_supported"] else 0, data_type="BOOLEAN")
