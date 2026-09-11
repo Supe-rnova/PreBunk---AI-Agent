@@ -110,4 +110,11 @@ uv run eval_retrieval.py  # 3. tests: eval_retrieval.py (free), eval.py (uses Ge
 
 Roozenbeek & van der Linden (2019), *Fake news game confers psychological resistance against online misinformation* · Roozenbeek et al. (2022), *Psychological inoculation improves resilience against misinformation on social media*, Science Advances · Cialdini, *Influence* · Cook's FLICC taxonomy · Lewandowsky & Cook (2020), *The Conspiracy Theory Handbook*. Individual sources are listed per technique in `bias_corpus.py`.
 
-_Built solo in one morning for the Agentic AI Bootcamp 2026 hackathon, Amritapuri._
+## Team
+
+- Manan Oswal
+- Saad Shaikh
+- Sri Surya Pranav
+- Pinipe Samuel Manoj
+
+_Built for the Agentic AI Bootcamp 2026 hackathon, Amritapuri._
