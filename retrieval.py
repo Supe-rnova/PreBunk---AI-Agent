@@ -1,11 +1,14 @@
-"""Technique retrieval (Track 2): RAG over bias_corpus.py using Chroma.
+"""Technique retrieval (Track 2): hybrid RAG over bias_corpus.py using Chroma.
 
-Every corpus entry becomes one or more chunks (its main text + each extra example).
-A message is embedded, the closest chunks are found, and results are grouped
-back into techniques, keeping each technique's best score.
+Score = semantic similarity + a boost for each corpus "marker" phrase found in the message.
+- Semantic: every corpus entry becomes chunks (main text + each extra example), embedded
+  with all-MiniLM-L6-v2; each technique keeps its best-matching chunk's cosine similarity.
+- Lexical: marker phrases (e.g. "forwarded as received") catch tell-tale wording that
+  a small embedding model misses. Matched phrases are returned, so every match is traceable.
 """
 import hashlib
 import json
+import re
 
 import chromadb
 from chromadb.config import Settings
@@ -15,7 +18,9 @@ from bias_corpus import BIASES
 
 DB_PATH = "chroma_db"
 COLLECTION_NAME = "techniques"
-MIN_SCORE = 0.40  # below this, a match is treated as "not found" - tune with test_retrieval.py
+MIN_SCORE = 0.40      # below this, a match is treated as "not found" - tune with test_retrieval.py
+MARKER_BOOST = 0.20   # added per marker phrase found in the message
+MAX_MARKER_HITS = 2   # at most +0.40 from markers
 
 BY_ID = {entry["id"]: entry for entry in BIASES}
 _collection = None
@@ -71,25 +76,48 @@ def get_collection():
     return collection
 
 
+def _normalize(text: str) -> str:
+    # phones often use curly apostrophes; make them match the corpus
+    return text.lower().replace("\u2019", "'").replace("\u2018", "'")
+
+
+def _marker_found(marker: str, lowered_text: str) -> bool:
+    m = _normalize(marker)
+    pattern = re.escape(m)
+    if m[:1].isalnum():
+        pattern = r"\b" + pattern   # whole words only, so "evil" doesn't match "medieval"
+    if m[-1:].isalnum():
+        pattern = pattern + r"\b"
+    return re.search(pattern, lowered_text) is not None
+
+
 def retrieve_techniques(text: str, k: int = 3, min_score: float = MIN_SCORE) -> list[dict]:
-    """Return up to k techniques the text most resembles: [{id, name, definition, score}, ...].
-    Returns [] if nothing scores at least min_score."""
+    """Return up to k techniques the text most resembles:
+    [{id, name, definition, score, matched_markers}, ...]. Returns [] if nothing reaches min_score."""
     if not text or not text.strip():
         return []
 
     collection = get_collection()
-    results = collection.query(query_texts=[text], n_results=min(25, collection.count()))
+    results = collection.query(query_texts=[text], n_results=collection.count())
 
-    best = {}  # technique_id -> best score across its chunks
+    semantic = {}  # technique_id -> best cosine similarity across its chunks
     for meta, distance in zip(results["metadatas"][0], results["distances"][0]):
-        score = 1.0 - distance  # cosine distance -> similarity
         tid = meta["technique_id"]
-        best[tid] = max(score, best.get(tid, -1.0))
+        semantic[tid] = max(1.0 - distance, semantic.get(tid, -1.0))
+
+    lowered = _normalize(text)
+    scored = []
+    for tid, entry in BY_ID.items():
+        hits = [m for m in entry.get("markers", []) if _marker_found(m, lowered)]
+        score = semantic.get(tid, 0.0) + MARKER_BOOST * min(len(hits), MAX_MARKER_HITS)
+        scored.append((min(score, 1.0), tid, hits))
+    scored.sort(key=lambda item: item[0], reverse=True)
 
     matches = []
-    for tid, score in sorted(best.items(), key=lambda kv: kv[1], reverse=True):
+    for score, tid, hits in scored:
         if score < min_score or len(matches) >= k:
             break
         entry = BY_ID[tid]
-        matches.append({"id": tid, "name": entry["name"], "definition": entry["definition"], "score": round(score, 3)})
+        matches.append({"id": tid, "name": entry["name"], "definition": entry["definition"],
+                        "score": round(score, 3), "matched_markers": hits})
     return matches

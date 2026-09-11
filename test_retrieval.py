@@ -17,5 +17,6 @@ for text in SAMPLES:
     print(text[:90])
     for m in retrieve_techniques(text, k=3, min_score=0.0):
         flag = "PASS " if m["score"] >= MIN_SCORE else "below"
-        print(f"   {m['score']:.2f} [{flag}] {m['name']}")
+        extra = f"   markers: {m['matched_markers']}" if m["matched_markers"] else ""
+        print(f"   {m['score']:.2f} [{flag}] {m['name']}{extra}")
     print()

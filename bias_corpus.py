@@ -46,7 +46,7 @@ BIASES = [
     {"id": "B04", "name": "Sunk cost fallacy",
      "definition": "Continuing a behavior or endeavor as a result of previously invested resources (time, money, effort), even when abandoning it would be more rational.",
      "example": "We've already spent eight months on this feature, so we can't cancel it now, even though nobody wants it anymore.",
-     "markers": ["already invested", "we've come this far", "too much time to quit now", "can't waste what we've put in"],
+     "markers": ["already invested", "we've come this far", "too much time to quit now", "can't waste what we've put in", "already spent", "can't stop now"],
      "text": "Sunk cost fallacy: continuing a behavior because of previously invested resources, even when stopping would be more rational. Example: we've already spent eight months on this feature so we can't cancel it now, even though nobody wants it anymore."},
 
     {"id": "B05", "name": "Framing effect",
@@ -167,7 +167,7 @@ BIASES = [
          "Forward this to 10 groups in the next hour, the government is removing this post tonight.",
          "Urgent!!! The bank is closing all accounts tomorrow unless you update your details today using this link.",
      ],
-     "markers": ["share before", "before they delete", "urgent", "forward to", "only hours left", "act now"],
+     "markers": ["share before", "before they delete", "urgent", "forward to", "only hours left", "act now", "will delete", "delete this"],
      "source": "Scarcity principle, Cialdini (1984), Influence",
      "text": "False urgency: pressuring the reader to act or share immediately so there is no time to verify, often claiming the information will be deleted soon. Example: share this NOW before they delete it, only a few hours left."},
 
@@ -178,7 +178,7 @@ BIASES = [
          "Every problem in this town started when those outsiders moved in. Send them back where they came from.",
          "Real citizens are suffering while those people get everything handed to them.",
      ],
-     "markers": ["those people", "taking over", "real citizens", "people like them", "outsiders"],
+     "markers": ["those people", "taking over", "real citizens", "people like them", "outsiders", "more crime than", "send them back"],
      "source": "Social identity theory, Tajfel & Turner (1979); 'Polarization' in Roozenbeek & van der Linden (2019); scapegoating in Roozenbeek et al. (2022)",
      "text": "Scapegoating, us versus them: blaming an entire group of people for a complex problem and framing it as us against them, encouraging hostility toward the out-group. Example: crime is rising and we all know which people are responsible, they are taking over."},
 
@@ -222,7 +222,7 @@ BIASES = [
          "Ask yourself why nobody is talking about this. They don't want you to know the truth.",
          "This is all part of a plan to control everyone, and anyone who says otherwise is paid to lie.",
      ],
-     "markers": ["they don't want you to know", "wake up", "media won't report", "cover-up", "planned this all along", "do your own research"],
+     "markers": ["they don't want you to know", "wake up", "media won't report", "cover-up", "planned this all along", "do your own research", "don't want you to know"],
      "source": "'Conspiracy' in Roozenbeek & van der Linden (2019); Lewandowsky & Cook (2020), The Conspiracy Theory Handbook",
      "text": "Conspiracy framing: explaining events as the secret plan of a powerful hidden group and treating lack of evidence as proof of a cover-up. Example: the media won't report this, which proves they are hiding it, wake up."},
 

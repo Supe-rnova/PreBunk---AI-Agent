@@ -16,5 +16,9 @@ async def main():
         for match in result.data:
             print("  ", match)
 
+        result = await client.call_tool("fact_check", {"text": "Mount Everest is the highest mountain on Earth above sea level."})
+        print("\nfact_check ->")
+        print("  ", result.data)
+
 
 asyncio.run(main())
