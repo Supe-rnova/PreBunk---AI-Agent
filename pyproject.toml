@@ -1,0 +1,25 @@
+[project]
+name = "hackathon"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Manan Oswal", email = "mananoswal0@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "chromadb>=1.5.9",
+    "fastmcp>=4.0.3",
+    "google-genai>=2.23.0",
+    "langfuse>=4.15.2",
+    "python-dotenv>=1.2.3",
+    "python-telegram-bot>=22.8",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+hackathon = "hackathon:main"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
